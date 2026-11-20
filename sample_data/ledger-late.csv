@@ -1,0 +1,3 @@
+record_type,heat,stage,recorded_at,meter,interval_start,interval_end,value,unit,revision,source
+meter,F-1109,,,M-02,2026-11-18T15:30:00Z,2026-11-18T19:00:00Z,640,kWh,1,晚到补录
+acceptance,F-1110,验收,2026-11-19T20:30:00Z,,,,合格,,2,返工后复验

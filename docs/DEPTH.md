@@ -15,6 +15,8 @@
 | M5 不确定区间 | 运行不确定区间并复核证据 | `POST /api/m5`；`/work/5` | `app/modules/m5_uncertainty/rules.py` | `tests/test_m5.py` |
 | M6 验收对照 | 运行验收对照并复核证据 | `POST /api/m6`；`/work/6` | `app/modules/m6_acceptance/rules.py` | `tests/test_m6.py` |
 | M7 复配批次 | 运行复配批次并复核证据 | `POST /api/m7`；`/work/7` | `app/modules/m7_reblend/rules.py` | `tests/test_m7.py` |
+| L1 炉次结算 | 导入台账并按炉查看产出/用电/排放，说明未结算与变化 | `POST /api/ledger/ingest`；`/ledger` | `app/ledger/settle.py`、`app/ledger/store.py` | `tests/test_ledger.py` |
+| L2 用电排放证明 | 为已结算炉次出证，修订保留旧版 | `POST /api/ledger/certificate`；`/ledger/certificates` | `app/ledger/store.py` | `tests/test_ledger.py` |
 
 ## 陷阱登记
 
@@ -28,6 +30,11 @@
 | TRAP-15 | 吨与千克 | 静默覆盖或误计 | 显式裁决并保留证据 | `app/modules/m2_assay/rules.py` | `tests/test_m2.py::test_units` |
 | TRAP-19 | 批号元数据冲突优先 | 静默覆盖或误计 | 显式裁决并保留证据 | `app/modules/m3_recipe/rules.py` | `tests/test_m3.py::test_conflicting_lot_mass` |
 | TRAP-25 | 配方版本锁定 | 静默覆盖或误计 | 显式裁决并保留证据 | `app/modules/m3_recipe/rules.py` | `tests/test_m3.py::test_version_lock` |
+| TRAP-26 | 跨炉次总表与晚到读数 | 重复计入同一区间或整批压住 | 按 (炉次, 电表, 半开区间) 幂等采集，晚到记录追加结算版本 | `app/ledger/settle.py` | `tests/test_ledger.py::test_duplicate_reading_counted_once` |
+| TRAP-27 | 返工/复配产出变化 | 沿用旧产出或旧验收出证 | 取最高修订产出，旧验收判失效并重验 | `app/ledger/settle.py` | `tests/test_ledger.py::test_rework_invalidates_old_acceptance` |
+| TRAP-28 | 未验收也出证 | 证明与对账打架 | 未结算/验收未完成拒绝出证并说明缺项 | `app/ledger/store.py` | `tests/test_ledger.py::test_certificate_requires_settled_heat` |
+| TRAP-29 | 证明修订覆盖 | 旧版无法恢复、无法对账 | 证明只追加，旧版标待换证/已替代/已失效且可下载 | `app/ledger/store.py` | `tests/test_ledger.py::test_revision_keeps_old_certificate_recoverable` |
+| TRAP-30 | 证明生成失败 | 连带丢失旧证据 | 事务回滚，不写证明行，失败留日志 | `app/ledger/store.py` | `tests/test_ledger.py::test_failed_certificate_keeps_previous_version` |
 
 ## 对账规则
 

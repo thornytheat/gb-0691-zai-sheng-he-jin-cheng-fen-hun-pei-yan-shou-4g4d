@@ -14,10 +14,12 @@ docker compose exec -T app pytest -q
 docker compose config --quiet
 ```
 
-打开 http://localhost:18205 。点击“运行样例”，或展开输入区提交CSV。切换七个模块查看计算依据。复核区可通过或退回，同一版本仅允许一次复核。证据CSV包含所有阶段与隔离行，批次内容不因复核变更。
+打开 http://localhost:18205 。点击“运行样例”，或展开输入区提交CSV。切换七个模块查看计算依据。
+
+另有两页面向交付：左侧“炉次结算”按炉列出投料、产出、用电、排放与验收，并写明哪些数字尚未结算、为什么变化；“用电排放证明”只对已结算炉次出证，修订保留旧版。复核区可通过或退回，同一版本仅允许一次复核。证据CSV包含所有阶段与隔离行，批次内容不因复核变更。
 
 SQLite保存在命名卷records；容器重建保留历史。只在确认不再需要数据时执行 `docker compose down -v` 重建。端口可通过.env中的PORT调整。本地也可 `pip install -r requirements.txt` 后 `python -m app.main`。
 
 ## 定义与限制
 
-详见docs/DATA-DICTIONARY.md、docs/DEPTH.md。单文件最大5MB/一万行，本工具按确定性文件离线复算，不查询外部业务系统。源码位于app，测试位于tests，样例位于sample_data。
+炉次结算与证明见docs/LEDGER.md：读数区间半开、同区间只计一次、返工后旧验收失效、证明只追加不覆盖。详见docs/DATA-DICTIONARY.md、docs/DEPTH.md。单文件最大5MB/一万行，本工具按确定性文件离线复算，不查询外部业务系统。源码位于app，测试位于tests，样例位于sample_data。

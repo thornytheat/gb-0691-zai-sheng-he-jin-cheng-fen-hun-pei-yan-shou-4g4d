@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{title}} · 炉次结算</title>
+<link rel="stylesheet" href="/static/theme.css"><link rel="stylesheet" href="/static/layout.css"><link rel="stylesheet" href="/static/components.css">
+<script defer src="/static/ledger.js"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand">ALLOY / 07</div>
+    <nav>
+      <a href="/ledger" class="{{ 'active' if section == 'ledger' }}">炉次结算</a>
+      <a href="/ledger/certificates" class="{{ 'active' if section == 'certificates' }}">用电排放证明</a>
+      <a href="/work/1">成分管线 · 七个模块</a>
+    </nav>
+    <small>结算规则 {{ rule_version }}<br>排放因子 0.5703 kgCO2e/kWh</small>
+  </aside>
+  <div class="work">
+    <header class="topbar">
+      <strong>{{ '炉次结算台账' if section == 'ledger' else '用电与排放证明' }}</strong>
+      <span class="muted">验收完成的炉次才可出证</span>
+      <a class="btn" href="/ledger">刷新结算</a>
+    </header>
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="statusbar">
+      <span>时间均按 UTC 半开区间 [起, 止) 结算</span>
+      <span>未结算字段不会出现在证明中</span>
+    </footer>
+  </div>
+</div>
+<script type="application/json" id="ledger-meta">{{ {'section': section}|tojson }}</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+{% extends 'ledger_base.html' %}
+{% block content %}
+<div class="kpis">
+  <div class="kpi"><span>证明总数</span><b>{{ certificates | length }}</b></div>
+  <div class="kpi"><span>生效中</span><b>{{ certificates | selectattr('status','equalto','有效') | list | length }}</b></div>
+  <div class="kpi"><span>已替代/失效</span><b>{{ certificates | rejectattr('status','equalto','有效') | list | length }}</b></div>
+</div>
+
+<div class="panel-grid">
+  <section class="panel">
+    <div class="panel__head"><h2>证明版本</h2><span>修订不覆盖，旧版永久保留</span></div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>证明编号</th><th>炉次</th><th>状态</th><th>结算版本</th><th>生成时间</th><th>替代为</th><th>下载</th></tr></thead>
+        <tbody>
+        {% for c in certificates %}
+          <tr>
+            <td>{{ c.id }}</td>
+            <td><a href="/ledger?heat={{ c.heat }}">{{ c.heat }}</a></td>
+            <td class="{{ 'sev--warn' if c.status != '有效' }}">{{ c.status }}</td>
+            <td>v{{ c.settlement_version }}</td>
+            <td>{{ c.generated_at }}</td>
+            <td>{{ c.superseded_by or '—' }}</td>
+            <td><a href="/api/ledger/certificate.csv?cert_id={{ c.id }}">CSV</a></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7" class="empty">还没有证明。在炉次结算页为已结算炉次出证。</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__head"><h2>可出证炉次</h2><span>验收完成 + 结算完成</span></div>
+    <div class="panel__body">
+      {% for h in board.heats %}
+        {% if h.settled %}
+          <p><a href="/ledger?heat={{ h.heat }}">{{ h.heat }}</a> · {{ h.output_kg | display }} kg · {{ h.electricity_kwh | display }} kWh · {{ h.emission_kg | display }} kgCO2e</p>
+        {% endif %}
+      {% endfor %}
+      <p class="muted">未结算炉次不出证：缺数或验收未完成时，页面会说明缺哪一项。</p>
+    </div>
+  </section>
+
+  {% if selected %}
+  <section class="panel span-all">
+    <div class="panel__head"><h2>{{ selected.heat }} 的现行依据</h2><span>{{ selected.status }}</span></div>
+    <div class="panel__body">
+      <div class="stamp {{ 'sev--warn' if not selected.settled }}">{{ '可出证' if selected.settled else '不可出证' }}</div>
+      {% if selected.reasons %}
+      <ul class="reasons">{% for reason in selected.reasons %}<li class="sev--warn"><b>{{ reason.code }}</b> {{ reason.text }}</li>{% endfor %}</ul>
+      {% endif %}
+      <p>投料 {{ selected.charge_kg | display if selected.charge_kg else '—' }} kg ·
+         产出 {{ selected.output_kg | display if selected.output_kg else '—' }} kg ·
+         用电 {{ selected.electricity_kwh | display if selected.electricity_kwh else '—' }} kWh ·
+         排放 {{ selected.emission_kg | display if selected.emission_kg else '—' }} kgCO2e</p>
+      <p class="muted">排放 = 用电 × {{ selected.factor }}（{{ selected.factor_version }}）。</p>
+      <div class="controls">
+        {% for c in selected.certificates %}
+          {% if c.status == '有效' %}<a class="btn" href="/api/ledger/certificate.csv?cert_id={{ c.id }}">下载 {{ c.id }}</a>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

@@ -11,3 +11,17 @@
 `GET /api/runs/<id>`读取指定批次；页面与证据CSV通过run_id查询参数绑定批次，模块导航保留该参数。
 
 JSON请求体必须是对象，数组、标量、null、损坏JSON及错误上传字段返回400，且不运行默认样例。
+
+## 炉次结算与用电排放证明
+
+`POST /api/ledger/ingest`：JSON 的 `csv` 文本或 multipart `file`，导入炉次台账（投料、产出、电表读数、验收）。重复导入同一条读数不新增记录；同区间同修订号但内容不同返回隔离提示 `CONFLICT`。
+
+`POST /api/ledger/settle`：按当前台账重算结算，数值变化才追加结算版本。
+
+`GET /api/ledger/heats`：每炉投料、产出、产出率、用电、排放、验收、结算状态、未结算字段、变化说明。`GET /api/ledger/heats/<heat>`：附结算版本历史与证明。
+
+`POST /api/ledger/certificate`：`heat`。炉次未结算或验收未完成返回 409（`UNSETTLED` / `ACCEPTANCE`）；同一结算版本重复出证不生成新版本；生成失败返回 500 `CERT_FAILED` 并保留旧证明。
+
+`GET /api/ledger/certificates[?heat=]`、`GET /api/ledger/certificates/<cert_id>`、`GET /api/ledger/certificate.csv?cert_id=`（或 `heat=` 取现行版）：证明只追加，状态为 有效 / 待换证 / 已替代 / 已失效。
+
+页面入口：`/ledger`（炉次结算）、`/ledger/certificates`（证明）。

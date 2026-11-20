@@ -1,0 +1,147 @@
+{% extends 'ledger_base.html' %}
+{% block content %}
+<div class="kpis">
+  {% set settled = board.heats | selectattr('settled') | list | length %}
+  <div class="kpi"><span>炉次</span><b>{{ board.heats | length }}</b></div>
+  <div class="kpi"><span>已结算</span><b>{{ settled }}</b></div>
+  <div class="kpi"><span>未结算</span><b>{{ board.heats | length - settled }}</b></div>
+  <div class="kpi"><span>读数重复未计</span><b>{{ board.duplicate_records }}</b></div>
+</div>
+
+<div class="panel-grid">
+  <section class="panel">
+    <div class="panel__head"><h2>每炉：投料 → 产出 → 验收</h2><span>点击炉次查看细节</span></div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>炉次</th><th>投料 kg</th><th>产出 kg</th><th>产出阶段</th><th>产出率 %</th><th>用电 kWh</th><th>排放 kgCO2e</th><th>验收</th><th>结算</th><th>未结算项</th></tr></thead>
+        <tbody>
+        {% for h in board.heats %}
+          <tr>
+            <td><a href="/ledger?heat={{ h.heat }}">{{ h.heat }}</a></td>
+            <td>{{ h.charge_kg | display if h.charge_kg else '—' }}</td>
+            <td>{{ h.output_kg | display if h.output_kg else '—' }}</td>
+            <td>{{ h.output.stage if h.output else '—' }}</td>
+            <td>{{ h.yield_pct | display if h.yield_pct else '—' }}</td>
+            <td>{{ h.electricity_kwh | display if h.electricity_kwh else '—' }}</td>
+            <td>{{ h.emission_kg | display if h.emission_kg else '—' }}</td>
+            <td>{{ h.acceptance.decision if h.acceptance else '—' }}</td>
+            <td class="{{ 'sev--warn' if not h.settled }}">{{ h.status }}</td>
+            <td title="{{ h.reasons | map(attribute='text') | join('；') }}">{{ h.unsettled_fields | join('、') if h.unsettled_fields else '—' }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="10" class="empty">台账为空。先导入样例或上传台账 CSV。</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div>
+    {% if selected %}
+    <section class="panel">
+      <div class="panel__head"><h2>{{ selected.heat }}</h2><span>结算 v{{ selected.version }}</span></div>
+      <div class="panel__body">
+        <div class="stamp {{ 'sev--warn' if not selected.settled }}">{{ selected.status }}</div>
+        {% if selected.reasons %}
+        <ul class="reasons">
+          {% for reason in selected.reasons %}<li class="sev--warn"><b>{{ reason.code }}</b> {{ reason.text }}</li>{% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted">投料、产出、用电区间与验收均已确定，可以出具证明。</p>
+        {% endif %}
+        {% if selected.settled %}
+        <div class="controls">
+          <button class="primary" data-issue="{{ selected.heat }}">出具证明</button>
+          <a class="btn" href="/api/ledger/certificate.csv?heat={{ selected.heat }}">下载现行证明</a>
+        </div>
+        {% endif %}
+        <div id="feedback" role="status" class="alert"></div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel__head"><h2>本炉为什么变化</h2><span>v{{ selected.version }}</span></div>
+      <div class="panel__body">
+        {% for change in selected.changes %}<p>{{ change }}</p>{% endfor %}
+        <details>
+          <summary>结算历史（{{ selected.versions | length }} 版）</summary>
+          {% for v in selected.versions | reverse %}
+          <div class="version">
+            <b>v{{ v.version }}</b>
+            {% for change in v.changes %}<p class="muted">{{ change }}</p>{% endfor %}
+          </div>
+          {% endfor %}
+        </details>
+      </div>
+    </section>
+    {% endif %}
+  </div>
+
+  {% if selected %}
+  <section class="panel span-all">
+    <div class="panel__head"><h2>用电读数区间</h2><span>半开区间，同一区间只计一次</span></div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>电表</th><th>起</th><th>止</th><th>kWh</th><th>修订</th><th>来源</th></tr></thead>
+        <tbody>
+        {% for i in selected.intervals %}
+          <tr><td>{{ i.meter }}</td><td>{{ i.interval_start }}</td><td>{{ i.interval_end }}</td><td>{{ i.value_kwh | display }}</td><td>r{{ i.revision }}</td><td>{{ i.source }}</td></tr>
+        {% else %}
+          <tr><td colspan="6" class="empty">尚无可用读数。</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if selected.superseded_intervals %}
+    <div class="panel__head"><h2>被更高修订号替代的读数</h2><span>保留留痕，不再计入</span></div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>电表</th><th>起</th><th>止</th><th>kWh</th><th>修订</th></tr></thead>
+        <tbody>
+        {% for i in selected.superseded_intervals %}
+          <tr><td>{{ i.meter }}</td><td>{{ i.interval_start }}</td><td>{{ i.interval_end }}</td><td>{{ i.value_kwh | display }}</td><td>r{{ i.revision }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% if selected.superseded_outputs %}
+    <div class="panel__head"><h2>被返工/复配替代的产出</h2><span>旧产出只留痕</span></div>
+    <div class="panel__body">
+      {% for o in selected.superseded_outputs %}
+      <p class="muted">{{ o.stage }} r{{ o.revision }} · {{ o.value_kg | display }} kg · {{ o.recorded_at }} · {{ o.source }}</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if selected.superseded_acceptances %}
+    <div class="panel__head"><h2>被替代的验收</h2><span>返工后需重新验收</span></div>
+    <div class="panel__body">
+      {% for a in selected.superseded_acceptances %}
+      <p class="muted">{{ a.decision }} r{{ a.revision }} · {{ a.recorded_at }} · {{ a.source }}</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="panel span-all">
+    <div class="panel__head"><h2>导入台账</h2><span>重复导入同一读数不会重复计入</span></div>
+    <div class="panel__body">
+      <details open>
+        <summary>炉次台账 CSV</summary>
+        <textarea id="ledger-csv" aria-label="炉次台账CSV">{{ sample }}</textarea>
+        <div class="controls">
+          <button id="ledger-submit">导入台账</button>
+          <button id="ledger-late">导入晚到记录样例</button>
+          <input id="ledger-file" type="file" accept=".csv" aria-label="上传台账CSV">
+          <button id="ledger-upload">上传台账</button>
+        </div>
+      </details>
+      <details>
+        <summary>晚到记录样例（含返工复验与补录读数）</summary>
+        <textarea id="ledger-late-csv" aria-label="晚到记录CSV" readonly>{{ late }}</textarea>
+      </details>
+      <div id="import-feedback" role="status" class="alert"></div>
+    </div>
+  </section>
+</div>
+{% endblock %}

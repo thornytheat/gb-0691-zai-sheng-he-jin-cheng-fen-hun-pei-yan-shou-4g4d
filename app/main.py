@@ -13,6 +13,8 @@ from app.modules.m4_blend.handler import bp as bp4
 from app.modules.m5_uncertainty.handler import bp as bp5
 from app.modules.m6_acceptance.handler import bp as bp6
 from app.modules.m7_reblend.handler import bp as bp7
+from app.ledger.api import bp as ledger_api
+from app.ledger.web import bp as ledger_web
 app=Flask(__name__)
 app.config['MAX_CONTENT_LENGTH']=5*1024*1024
 app.json.ensure_ascii=False
@@ -32,11 +34,13 @@ app.register_blueprint(bp4)
 app.register_blueprint(bp5)
 app.register_blueprint(bp6)
 app.register_blueprint(bp7)
+app.register_blueprint(ledger_api)
+app.register_blueprint(ledger_web)
 @app.before_request
 def validate_request_object():
     if request.method!='POST': return None
     if request.files:
-        if request.path!='/api/run' or 'file' not in request.files:
+        if request.path not in ('/api/run','/api/ledger/ingest') or 'file' not in request.files:
             raise DomainError('REQUEST','上传必须使用file字段',400)
         return None
     if not request.is_json:
